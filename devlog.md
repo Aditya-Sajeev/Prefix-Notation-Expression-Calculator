@@ -25,3 +25,20 @@ Save the results in a history list so the user can reuse them later using $n (e.
 
 Print the Result:
 Show the result with its number from the history, like 1: 7 or 2: 10.
+
+
+3/25/2025 3:37PM
+
+Example Walkthrough:
+
+User enters:
++ 2 3
+Output:
+1: 5
+
+Then they enter:
+* $1 4
+This means multiply the previous result (5) by 4.
+
+Output:
+2: 20
