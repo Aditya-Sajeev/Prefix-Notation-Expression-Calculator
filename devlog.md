@@ -42,3 +42,8 @@ This means multiply the previous result (5) by 4.
 
 Output:
 2: 20
+
+
+3/26/2025 3:22PM
+
+Created psuedocode for the project
