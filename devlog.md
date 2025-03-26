@@ -47,3 +47,8 @@ Output:
 3/26/2025 3:22PM
 
 Created psuedocode for the project
+
+
+3/26/2025 4:33PM
+
+Filled in code for pseudocode
