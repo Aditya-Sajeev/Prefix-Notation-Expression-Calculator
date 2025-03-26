@@ -53,6 +53,11 @@ Created psuedocode for the project
 
 Filled in code for pseudocode
 
-3/26/2025 4:53PM
+3/26/2025 4:54PM
 
 Changes to history id / Changes to binary operations / Changes to input parsing issues / Changes to display of results
+
+
+3/26/2025 5:11PM
+
+Added tokenize function / Changes to error handling / Changes to batch mode / Changes to binary operations
