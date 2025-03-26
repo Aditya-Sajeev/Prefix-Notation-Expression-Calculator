@@ -60,7 +60,7 @@
         (cond
           [(string=? op "+") (eval-binary + rest history)]  ; Evaluate addition
           [(string=? op "*") (eval-binary * rest history)]  ; Evaluate multiplication
-          [(string=? op "/") (eval-binary / rest history)]  ; Evaluate division
+          [(string=? op "/") (eval-binary quotient rest history)]  ; Integer division
           [(string=? op "-") (eval-unary - rest history)]  ; Evaluate unary negation
           [(regexp-match #px"^\\$[0-9]+$" op) (eval-history-ref op history rest)]  ; History reference
           [(string->number op) (list (string->number op) rest)]  ; Convert to number if possible
@@ -74,7 +74,7 @@
         (let ([right (eval-expr (cadr left) history)])
           (if (equal? (car right) 'error)
               right
-              (if (and (equal? op /) (zero? (car right)))  ; Handle division by zero
+              (if (and (eq? op quotient) (zero? (car right)))  ; Handle division by zero
                   (list 'error (cadr right))
                   (list (op (car left) (car right)) (cadr right))))))))
 
@@ -89,7 +89,8 @@
 (define (eval-history-ref ref history tokens)
   (let ([index (string->number (substring ref 1))])  ; Get the index from $n
     (if (and (<= 1 index (length history)))
-        (list (list-ref (reverse history) (- index 1)) tokens)  ; Retrieve history value
+        (let ([history-value (list-ref (reverse history) (- index 1))])
+          (list history-value tokens))  ; Retrieve history value
         (list 'error tokens))))  ; Return error if index is out of range
 
 ; Main loop
