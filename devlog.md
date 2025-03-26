@@ -61,3 +61,8 @@ Changes to history id / Changes to binary operations / Changes to input parsing 
 3/26/2025 5:11PM
 
 Added tokenize function / Changes to error handling / Changes to batch mode / Changes to binary operations
+
+
+3/26/2025 5:22PM
+
+Changes to let-values / Changes to evuluate function / Changes to display of return / Changes to error handling

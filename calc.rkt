@@ -38,23 +38,24 @@
 (define (evaluate expr history)
   (if (string=? expr "quit")
       (begin (print-msg "Exiting...") (exit))  ; Exit if expr is "quit"
-      (with-handlers 
-        [(exn:fail? 
-          (lambda (e) 
-            (print-msg "Error: Invalid Expression")
-            'error))]
-        (let-values ([(result remaining-tokens)] 
-                     (eval-expr (map symbol->string (tokenize expr)) history)))
-          (if (or (equal? result 'error) (not (null? remaining-tokens)))
-              (begin 
-                (print-msg "Error: Invalid Expression") 
-                'error)
-              result))))
+      (let ([tokens (tokenize expr)])
+        (with-handlers 
+          [(exn:fail? 
+            (lambda (e) 
+              (print-msg "Error: Invalid Expression")
+              'error))]
+          (let ([result (eval-expr tokens history)])
+            (if (or (equal? (car result) 'error) 
+                    (not (null? (cadr result))))
+                (begin 
+                  (print-msg "Error: Invalid Expression") 
+                  'error)
+                (car result)))))))
 
 ; Evaluate expression recursively
 (define (eval-expr tokens history)
   (if (null? tokens)
-      (values 'error '())  ; Return error if tokens are empty
+      (list 'error '())  ; Return error if tokens are empty
       (let ([op (car tokens)] [rest (cdr tokens)])
         (cond
           [(string=? op "+") (eval-binary + rest history)]  ; Evaluate addition
@@ -62,32 +63,34 @@
           [(string=? op "/") (eval-binary / rest history)]  ; Evaluate division
           [(string=? op "-") (eval-unary - rest history)]  ; Evaluate unary negation
           [(regexp-match #px"^\\$[0-9]+$" op) (eval-history-ref op history rest)]  ; History reference
-          [(string->number op) (values (string->number op) rest)]  ; Convert to number if possible
-          [else (values 'error rest)]))))  ; If invalid operator, return error
+          [(string->number op) (list (string->number op) rest)]  ; Convert to number if possible
+          [else (list 'error rest)]))))  ; If invalid operator, return error
 
 ; Evaluate binary operations
 (define (eval-binary op tokens history)
-  (let-values ([(left rest1) (eval-expr tokens history)])
-    (let-values ([(right rest2) (eval-expr rest1 history)])
-      (if (or (equal? left 'error) (equal? right 'error))
-          (values 'error rest2)
-          (if (and (equal? op /) (zero? right))  ; Handle division by zero
-              (values 'error rest2)
-              (values (op left right) rest2))))))
+  (let ([left (eval-expr tokens history)])
+    (if (equal? (car left) 'error)
+        left
+        (let ([right (eval-expr (cadr left) history)])
+          (if (equal? (car right) 'error)
+              right
+              (if (and (equal? op /) (zero? (car right)))  ; Handle division by zero
+                  (list 'error (cadr right))
+                  (list (op (car left) (car right)) (cadr right))))))))
 
 ; Evaluate unary operations
 (define (eval-unary op tokens history)
-  (let-values ([(value rest) (eval-expr tokens history)])
-    (if (equal? value 'error)
-        (values 'error rest)
-        (values (op value) rest))))
+  (let ([value (eval-expr tokens history)])
+    (if (equal? (car value) 'error)
+        value
+        (list (op (car value)) (cadr value)))))
 
 ; Evaluate history reference
 (define (eval-history-ref ref history tokens)
   (let ([index (string->number (substring ref 1))])  ; Get the index from $n
     (if (and (<= 1 index (length history)))
-        (values (list-ref (reverse history) (- index 1)) tokens)  ; Retrieve history value
-        (values 'error tokens))))  ; Return error if index is out of range
+        (list (list-ref (reverse history) (- index 1)) tokens)  ; Retrieve history value
+        (list 'error tokens))))  ; Return error if index is out of range
 
 ; Main loop
 (define (repl-loop history)
