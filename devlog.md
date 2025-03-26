@@ -65,4 +65,9 @@ Added tokenize function / Changes to error handling / Changes to batch mode / Ch
 
 3/26/2025 5:22PM
 
-Changes to let-values / Changes to evuluate function / Changes to display of return / Changes to error handling
+Changes to let-values / Changes to evaluate function / Changes to display of return / Changes to error handling
+
+
+3/26/2025 5:22PM
+
+Changes to repl-loop function

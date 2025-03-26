@@ -98,8 +98,7 @@
   (let* ([expr (read-line)]
          [result (evaluate expr history)])
     (if (not (equal? result 'error))
-        (begin
-          (define new-history (cons (real->double-flonum result) history))  ; Add result to history
+        (let ([new-history (cons (real->double-flonum result) history)])
           (print-msg (format "~a: ~a" (length new-history) result))  ; Display result with history id
           (repl-loop new-history))  ; Continue loop with updated history
         (repl-loop history))))  ; Keep current history on error
