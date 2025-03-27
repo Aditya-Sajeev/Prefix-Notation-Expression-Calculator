@@ -76,3 +76,8 @@ Changes to repl-loop function
 3/26/2025 5:52PM
 
 Changes to error handling
+
+
+3/26/2025 11:01PM
+
+Changes to evaluate function

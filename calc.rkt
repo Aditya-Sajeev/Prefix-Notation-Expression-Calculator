@@ -13,7 +13,7 @@
 (define (print-msg msg)
   (when interactive? (displayln msg)))
 
-; Tokenize the input expression
+; Improved tokenization to handle complex expressions
 (define (tokenize expr)
   (let loop ([chars (string->list expr)]
              [current-token '()]
@@ -45,28 +45,34 @@
               (print-msg "Error: Invalid Expression")
               'error))]
           (let ([result (eval-expr tokens history)])
-            (if (or (equal? (car result) 'error) 
-                    (not (null? (cadr result))))
+            (if (equal? (car result) 'error)
                 (begin 
                   (print-msg "Error: Invalid Expression") 
                   'error)
-                (car result)))))))
+                (let ([final-result (car result)]
+                      [remaining-tokens (cadr result)])
+                  ; Check if all tokens have been consumed
+                  (if (null? remaining-tokens)
+                      final-result
+                      (begin
+                        (print-msg "Error: Invalid Expression")
+                        'error)))))))))
 
-; Evaluate expression recursively
+; Recursive expression evaluation
 (define (eval-expr tokens history)
   (if (null? tokens)
       (list 'error '())  ; Return error if tokens are empty
       (let ([op (car tokens)] [rest (cdr tokens)])
         (cond
-          [(string=? op "+") (eval-binary + rest history)]  ; Evaluate addition
-          [(string=? op "*") (eval-binary * rest history)]  ; Evaluate multiplication
-          [(string=? op "/") (eval-binary quotient rest history)]  ; Integer division
-          [(string=? op "-") (eval-unary - rest history)]  ; Evaluate unary negation
-          [(regexp-match #px"^\\$[0-9]+$" op) (eval-history-ref op history rest)]  ; History reference
-          [(string->number op) (list (string->number op) rest)]  ; Convert to number if possible
-          [else (list 'error rest)]))))  ; If invalid operator, return error
+          [(string=? op "+") (eval-binary + rest history)]
+          [(string=? op "*") (eval-binary * rest history)]
+          [(string=? op "/") (eval-binary quotient rest history)]
+          [(string=? op "-") (eval-unary - rest history)]
+          [(regexp-match #px"^\\$[0-9]+$" op) (eval-history-ref op history rest)]
+          [(string->number op) (list (string->number op) rest)]
+          [else (list 'error rest)]))))
 
-; Evaluate binary operations
+; Binary operation evaluation
 (define (eval-binary op tokens history)
   (let ([left (eval-expr tokens history)])
     (if (equal? (car left) 'error)
@@ -74,18 +80,18 @@
         (let ([right (eval-expr (cadr left) history)])
           (if (equal? (car right) 'error)
               right
-              (if (and (eq? op quotient) (zero? (car right)))  ; Handle division by zero
+              (if (and (eq? op quotient) (zero? (car right)))  ; Division by zero check
                   (list 'error (cadr right))
                   (list (op (car left) (car right)) (cadr right))))))))
 
-; Evaluate unary operations
+; Unary operation evaluation
 (define (eval-unary op tokens history)
   (let ([value (eval-expr tokens history)])
     (if (equal? (car value) 'error)
         value
         (list (op (car value)) (cadr value)))))
 
-; Evaluate history reference
+; History reference evaluation
 (define (eval-history-ref ref history tokens)
   (let ([index (string->number (substring ref 1))])  ; Get the index from $n
     (if (and (<= 1 index (length history)))
@@ -93,7 +99,7 @@
           (list history-value tokens))  ; Retrieve history value
         (list 'error tokens))))  ; Return error if index is out of range
 
-; Main loop
+; Main REPL loop
 (define (repl-loop history)
   (print-msg "Enter an expression (or type 'quit' to exit): ")
   (let* ([expr (read-line)]
@@ -104,7 +110,7 @@
           (repl-loop new-history))  ; Continue loop with updated history
         (repl-loop history))))  ; Keep current history on error
 
-; Start the program
+; Main program entry point
 (define (main)
   (if interactive?
       (repl-loop '())  ; Start in interactive mode
