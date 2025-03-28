@@ -81,3 +81,8 @@ Changes to error handling
 3/26/2025 11:01PM
 
 Changes to evaluate function
+
+
+3/28/2025 6:47PM
+
+Changes to tokenization | Changes to evaluation | Changes to error handling

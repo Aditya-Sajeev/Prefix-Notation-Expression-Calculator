@@ -13,91 +13,102 @@
 (define (print-msg msg)
   (when interactive? (displayln msg)))
 
-; Improved tokenization to handle complex expressions
-(define (tokenize expr)
-  (let loop ([chars (string->list expr)]
-             [current-token '()]
-             [tokens '()])
+; Process the input string character by character
+(define (process-string str)
+  (let process ([chars (string->list str)]
+                [tokens '()])
     (cond
-      [(null? chars)
-       (reverse (if (null? current-token)
-                    tokens
-                    (cons (list->string (reverse current-token)) tokens)))]
-      [(char-whitespace? (car chars))
-       (loop (cdr chars)
-             '()
-             (if (null? current-token)
-                 tokens
-                 (cons (list->string (reverse current-token)) tokens)))]
-      [else
-       (loop (cdr chars)
-             (cons (car chars) current-token)
-             tokens)])))
+      [(null? chars) (reverse tokens)]
+      [(char-whitespace? (car chars)) (process (cdr chars) tokens)]
+      [(char=? (car chars) #\+) (process (cdr chars) (cons "+" tokens))]
+      [(char=? (car chars) #\*) (process (cdr chars) (cons "*" tokens))]
+      [(char=? (car chars) #\/) (process (cdr chars) (cons "/" tokens))]
+      [(char=? (car chars) #\-) (process (cdr chars) (cons "-" tokens))]
+      [(char=? (car chars) #\$) 
+       (let ([hist-idx (extract-history-index (cdr chars))])
+         (process (list-tail chars (+ 1 (string-length (number->string (car hist-idx)))))
+                  (cons (string-append "$" (number->string (car hist-idx))) tokens)))]
+      [(char-numeric? (car chars))
+       (let ([num (extract-number chars)])
+         (process (list-tail chars (string-length (number->string (car num))))
+                  (cons (number->string (car num)) tokens)))]
+      [else (process (cdr chars) tokens)])))
 
-; Evaluate expression with error handling
+; Extract a history index from a character list
+(define (extract-history-index chars)
+  (let extract ([remaining chars]
+                [digits '()])
+    (cond
+      [(null? remaining) (list (string->number (list->string (reverse digits))))]
+      [(char-numeric? (car remaining)) 
+       (extract (cdr remaining) (cons (car remaining) digits))]
+      [else (list (string->number (list->string (reverse digits))))])))
+
+; Extract a number from a character list
+(define (extract-number chars)
+  (let extract ([remaining chars]
+                [digits '()])
+    (cond
+      [(null? remaining) (list (string->number (list->string (reverse digits))))]
+      [(char-numeric? (car remaining)) 
+       (extract (cdr remaining) (cons (car remaining) digits))]
+      [else (list (string->number (list->string (reverse digits))))])))
+
+; Main evaluation function
 (define (evaluate expr history)
   (if (string=? expr "quit")
-      (begin (print-msg "Exiting...") (exit))  ; Exit if expr is "quit"
-      (let ([tokens (tokenize expr)])
-        (with-handlers 
-          [(exn:fail? 
-            (lambda (e) 
-              (print-msg "Error: Invalid Expression")
-              'error))]
-          (let ([result (eval-expr tokens history)])
-            (if (equal? (car result) 'error)
-                (begin 
-                  (print-msg "Error: Invalid Expression") 
-                  'error)
-                (let ([final-result (car result)]
-                      [remaining-tokens (cadr result)])
-                  ; Check if all tokens have been consumed
-                  (if (null? remaining-tokens)
-                      final-result
-                      (begin
-                        (print-msg "Error: Invalid Expression")
-                        'error)))))))))
+      (begin (print-msg "Exiting...") (exit))
+      (let ([tokens (process-string expr)])
+        (let ([result (eval-expr tokens '() history)])
+          (if (or (eq? (car result) 'error) (not (null? (cadr result))))
+              (begin (print-msg "Error: Invalid Expression") 'error)
+              (car result))))))
 
-; Recursive expression evaluation
-(define (eval-expr tokens history)
+; Evaluate expressions
+(define (eval-expr tokens parsed history)
   (if (null? tokens)
-      (list 'error '())  ; Return error if tokens are empty
-      (let ([op (car tokens)] [rest (cdr tokens)])
+      (list 'error parsed)
+      (let ([token (car tokens)]
+            [rest (cdr tokens)])
         (cond
-          [(string=? op "+") (eval-binary + rest history)]
-          [(string=? op "*") (eval-binary * rest history)]
-          [(string=? op "/") (eval-binary quotient rest history)]
-          [(string=? op "-") (eval-unary - rest history)]
-          [(regexp-match #px"^\\$[0-9]+$" op) (eval-history-ref op history rest)]
-          [(string->number op) (list (string->number op) rest)]
+          [(string=? token "+") 
+           (let ([left (eval-expr rest parsed history)])
+             (if (eq? (car left) 'error)
+                 left
+                 (let ([right (eval-expr (cadr left) (cons (car left) parsed) history)])
+                   (if (eq? (car right) 'error)
+                       right
+                       (list (+ (car left) (car right)) (cadr right))))))]
+          [(string=? token "*") 
+           (let ([left (eval-expr rest parsed history)])
+             (if (eq? (car left) 'error)
+                 left
+                 (let ([right (eval-expr (cadr left) (cons (car left) parsed) history)])
+                   (if (eq? (car right) 'error)
+                       right
+                       (list (* (car left) (car right)) (cadr right))))))]
+          [(string=? token "/") 
+           (let ([left (eval-expr rest parsed history)])
+             (if (eq? (car left) 'error)
+                 left
+                 (let ([right (eval-expr (cadr left) (cons (car left) parsed) history)])
+                   (if (eq? (car right) 'error)
+                       right
+                       (if (zero? (car right))
+                           (list 'error (cadr right))
+                           (list (quotient (car left) (car right)) (cadr right)))))))]
+          [(string=? token "-") 
+           (let ([value (eval-expr rest parsed history)])
+             (if (eq? (car value) 'error)
+                 value
+                 (list (- (car value)) (cadr value))))]
+          [(string-prefix? token "$") 
+           (let ([index (string->number (substring token 1))])
+             (if (and (positive? index) (<= index (length history)))
+                 (list (list-ref (reverse history) (- index 1)) rest)
+                 (list 'error rest)))]
+          [(string->number token) (list (string->number token) rest)]
           [else (list 'error rest)]))))
-
-; Binary operation evaluation
-(define (eval-binary op tokens history)
-  (let ([left (eval-expr tokens history)])
-    (if (equal? (car left) 'error)
-        left
-        (let ([right (eval-expr (cadr left) history)])
-          (if (equal? (car right) 'error)
-              right
-              (if (and (eq? op quotient) (zero? (car right)))  ; Division by zero check
-                  (list 'error (cadr right))
-                  (list (op (car left) (car right)) (cadr right))))))))
-
-; Unary operation evaluation
-(define (eval-unary op tokens history)
-  (let ([value (eval-expr tokens history)])
-    (if (equal? (car value) 'error)
-        value
-        (list (op (car value)) (cadr value)))))
-
-; History reference evaluation
-(define (eval-history-ref ref history tokens)
-  (let ([index (string->number (substring ref 1))])  ; Get the index from $n
-    (if (and (<= 1 index (length history)))
-        (let ([history-value (list-ref (reverse history) (- index 1))])
-          (list history-value tokens))  ; Retrieve history value
-        (list 'error tokens))))  ; Return error if index is out of range
 
 ; Main REPL loop
 (define (repl-loop history)
@@ -106,20 +117,20 @@
          [result (evaluate expr history)])
     (if (not (equal? result 'error))
         (let ([new-history (cons (real->double-flonum result) history)])
-          (print-msg (format "~a: ~a" (length new-history) result))  ; Display result with history id
-          (repl-loop new-history))  ; Continue loop with updated history
-        (repl-loop history))))  ; Keep current history on error
+          (print-msg (format "~a: ~a" (length new-history) result))
+          (repl-loop new-history))
+        (repl-loop history))))
 
 ; Main program entry point
 (define (main)
   (if interactive?
-      (repl-loop '())  ; Start in interactive mode
+      (repl-loop '())
       (for-each 
        (lambda (expr) 
          (let ([result (evaluate expr '())])
            (unless (equal? result 'error)
              (display (real->double-flonum result))
              (newline))))
-       (port->lines (current-input-port)))))  ; Batch mode
+       (port->lines (current-input-port)))))
 
 (main)
