@@ -86,3 +86,7 @@ Changes to evaluate function
 3/28/2025 6:47PM
 
 Changes to tokenization | Changes to evaluation | Changes to error handling
+
+3/28/2025 :PM
+
+Implemented batch mode

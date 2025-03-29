@@ -121,16 +121,25 @@
           (repl-loop new-history))
         (repl-loop history))))
 
+; Process batch input
+(define (process-batch-input)
+  (let loop ([history '()]
+             [line (read-line)])
+    (if (eof-object? line)
+        (void)
+        (let ([result (evaluate line history)])
+          (if (not (equal? result 'error))
+              (begin
+                (display (real->double-flonum result))
+                (newline)
+                (loop (cons (real->double-flonum result) history) (read-line)))
+              (loop history (read-line)))))))
+
 ; Main program entry point
 (define (main)
   (if interactive?
       (repl-loop '())
-      (for-each 
-       (lambda (expr) 
-         (let ([result (evaluate expr '())])
-           (unless (equal? result 'error)
-             (display (real->double-flonum result))
-             (newline))))
-       (port->lines (current-input-port)))))
+      (process-batch-input)))
+
 
 (main)
